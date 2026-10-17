@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learn</title>
+<style>
+:root { --bg: #0f0f17; --panel: #151827; --line: #2a2f4d; --text: #e2e8f0; --muted: #8b93a7; --accent: #e94560; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 'Segoe UI', system-ui, -apple-system, sans-serif; }
+main { max-width: 640px; margin: 0 auto; padding: 2.5rem 1.2rem; }
+h1 { font-size: 1.9rem; margin: 0 0 .3rem; }
+h1 span { color: var(--accent); }
+p.sub { color: var(--muted); margin: 0 0 2rem; }
+a.card { display: block; padding: 1.1rem 1.2rem; margin-bottom: .9rem; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); color: var(--text); text-decoration: none; }
+a.card:hover, a.card:focus-visible { border-color: var(--accent); }
+a.card b { display: block; font-size: 1.08rem; }
+a.card small { color: var(--muted); }
+a.card.main { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1><span>Learn</span></h1>
+  <p class="sub">Study material for front-end interviews.</p>
+  <a class="card main" href="senior-interview-prep/">
+    <b>🎯 Senior Front-End Interview Prep</b>
+    <small>202 questions with mock answers and follow-ups, flashcards, progress tracking</small>
+  </a>
+  <a class="card" href="event-loop.html">
+    <b>⚙️ The Event Loop</b>
+    <small>Interactive visual guide to the call stack, microtasks and macrotasks</small>
+  </a>
+  <a class="card" href="hooks-lab.html">
+    <b>🪝 React Hooks Lab</b>
+    <small>Visual, interactive guide to React hooks</small>
+  </a>
+</main>
+</body>
+</html>

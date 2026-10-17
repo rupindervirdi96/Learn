@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>React Hooks — Visual Guide</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+:root {
+  --bg:     #0f0f17;
+  --panel:  #16192a;
+  --card:   #1e2340;
+  --accent: #e94560;
+  --green:  #4ade80;
+  --yellow: #fbbf24;
+  --blue:   #60a5fa;
+  --purple: #a78bfa;
+  --text:   #e2e8f0;
+  --muted:  #6b7280;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6;
+}
+section { scroll-margin-top: 72px; }
+a { color: inherit; text-decoration: none; }
+
+/* ── Layout ── */
+.app     { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+.app-header { text-align: center; margin-bottom: 2rem; padding-top: 0.5rem; }
+.app-header h1 { font-size: 2.2rem; }
+.app-header h1 span { color: var(--accent); }
+.app-sub { color: var(--muted); margin-top: 0.4rem; font-size: 0.95rem; }
+
+/* ── Nav ── */
+.sticky-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,15,23,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--card);
+  display: flex; gap: 0.2rem; padding: 0.6rem 0; margin-bottom: 3rem;
+  overflow-x: auto;
+}
+.sticky-nav::-webkit-scrollbar { display: none; }
+.nav-link {
+  padding: 0.33rem 0.9rem; border-radius: 20px; color: var(--muted);
+  font-size: 0.8rem; font-weight: 700; white-space: nowrap;
+  font-family: 'Cascadia Code','Consolas',monospace;
+  transition: all 0.18s; cursor: pointer;
+}
+.nav-link:hover { color: var(--text); background: var(--card); }
+.nav-active     { color: var(--text) !important; background: var(--card) !important; }
+
+/* ── Section ── */
+.section-title {
+  font-size: 1.35rem; margin-bottom: 0.5rem;
+  display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;
+}
+.hook-tag {
+  font-family: 'Cascadia Code','Consolas',monospace;
+  font-size: 0.77rem; padding: 0.2rem 0.65rem; border-radius: 4px;
+  color: #fff; font-weight: 700;
+}
+.section-sub { color: var(--muted); margin-bottom: 1.4rem; font-size: 0.88rem; line-height: 1.75; }
+
+/* ── Split layout ── */
+.split-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1rem; align-items: start; margin-bottom: 1rem;
+}
+.split-label {
+  font-size: 0.67rem; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--muted); margin-bottom: 0.45rem; font-weight: 700;
+}
+
+/* ── Demo box ── */
+.demo-box {
+  background: var(--panel); border-radius: 10px; padding: 1.2rem;
+  border: 1px solid var(--card); position: relative; min-height: 80px;
+}
+.demo-section { padding: 0.75rem 0; border-bottom: 1px solid var(--card); }
+.demo-section:last-child  { border-bottom: none; padding-bottom: 0; }
+.demo-section:first-child { padding-top: 0; }
+.demo-label {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--muted); margin-bottom: 0.55rem; font-weight: 700;
+}
+.big-num {
+  font-size: 2.4rem; font-weight: 800; color: var(--blue); line-height: 1; margin-bottom: 0.65rem;
+}
+.big-num.mono {
+  font-family: 'Cascadia Code','Consolas',monospace; font-size: 1.9rem; letter-spacing: 3px;
+}
+.btn-row { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; }
+.btn {
+  padding: 0.38rem 0.95rem; border: none; border-radius: 6px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 700; font-family: inherit; transition: transform 0.12s, opacity 0.12s;
+}
+.btn:hover:not(:disabled) { transform: translateY(-1px); opacity: 0.88; }
+.btn:active:not(:disabled){ transform: translateY(0); }
+.btn:disabled { opacity: 0.38; cursor: not-allowed; }
+.btn-a { background: var(--accent);  color: #fff; }
+.btn-b { background: var(--blue);    color: #000; }
+.btn-g { background: var(--green);   color: #000; }
+.btn-c { background: var(--purple);  color: #fff; }
+.btn-r { background: #252535;        color: var(--text); }
+.demo-input {
+  background: #080810; border: 1px solid var(--card); border-radius: 6px;
+  padding: 0.42rem 0.75rem; color: var(--text); font-size: 0.87rem;
+  width: 100%; max-width: 290px; outline: none; transition: border-color 0.2s; font-family: inherit;
+}
+.demo-input:focus { border-color: var(--blue); }
+.demo-output { margin-top: 0.45rem; font-size: 0.9rem; }
+.hint { font-size: 0.73rem; color: var(--muted); margin-top: 0.38rem; line-height: 1.5; }
+
+/* ── Render badge ── */
+.render-badge {
+  position: absolute; top: 0.7rem; right: 0.7rem;
+  background: rgba(233,69,96,0.1); color: var(--accent);
+  border: 1px solid rgba(233,69,96,0.25); border-radius: 12px;
+  padding: 0.16rem 0.5rem; font-size: 0.68rem;
+  font-family: 'Cascadia Code',monospace; font-weight: 700; pointer-events: none;
+}
+.inline-badge {
+  background: rgba(233,69,96,0.1); color: var(--accent);
+  border: 1px solid rgba(233,69,96,0.25); border-radius: 10px;
+  padding: 0.12rem 0.45rem; font-size: 0.68rem;
+  font-family: monospace; font-weight: 700;
+}
+.inline-badge-g {
+  background: rgba(74,222,128,0.1); color: var(--green);
+  border-color: rgba(74,222,128,0.25);
+}
+
+/* ── Re-render flash ── */
+@keyframes flash-border {
+  0%   { box-shadow: 0 0 0 3px rgba(233,69,96,0.65); }
+  100% { box-shadow: 0 0 0 0 rgba(233,69,96,0); }
+}
+.re-render { animation: flash-border 0.5s ease-out forwards; }
+
+/* ── Code block ── */
+.code-block {
+  background: #080810; border-radius: 8px; padding: 1rem 1.1rem;
+  font-family: 'Cascadia Code','Consolas',monospace; font-size: 0.76rem;
+  line-height: 1.92; overflow-x: auto; border: 1px solid var(--card); white-space: pre;
+}
+.cmt { color: #3a4660; font-style: italic; }
+.str { color: var(--green);  }
+.kw  { color: var(--purple); }
+.fn  { color: var(--blue);   }
+.num { color: var(--yellow); }
+
+/* ── Callout ── */
+.callout { border-radius: 10px; padding: 1.1rem 1.4rem; border: 1px solid; }
+.callout h4 { font-size: 0.87rem; margin-bottom: 0.5rem; font-weight: 700; }
+.callout ul { list-style: none; }
+.callout li {
+  padding: 0.27rem 0 0.27rem 1.2rem; font-size: 0.84rem;
+  line-height: 1.6; position: relative;
+}
+.callout li::before { content: '→'; position: absolute; left: 0; opacity: 0.55; }
+.callout code {
+  background: rgba(255,255,255,0.08); padding: 0.1em 0.38em;
+  border-radius: 3px; font-family: 'Cascadia Code',monospace; font-size: 0.82em;
+}
+.callout-blue   { background: rgba(96,165,250,0.05);  border-color: rgba(96,165,250,0.2);  }
+.callout-blue   h4 { color: var(--blue);   }
+.callout-green  { background: rgba(74,222,128,0.05); border-color: rgba(74,222,128,0.2);  }
+.callout-green  h4 { color: var(--green);  }
+.callout-yellow { background: rgba(251,191,36,0.05); border-color: rgba(251,191,36,0.2);  }
+.callout-yellow h4 { color: var(--yellow); }
+.callout-purple { background: rgba(167,139,250,0.05);border-color: rgba(167,139,250,0.2); }
+.callout-purple h4 { color: var(--purple); }
+.callout-red    { background: rgba(233,69,96,0.05);  border-color: rgba(233,69,96,0.2);   }
+.callout-red    h4 { color: var(--accent); }
+
+/* ── useCallback child rows ── */
+.child-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.75rem; background: #080810;
+  border-radius: 6px; border: 1px solid var(--card); margin-bottom: 4px;
+}
+.child-row.stable { border-color: rgba(74,222,128,0.3); }
+.child-label { font-size: 0.77rem; flex: 1; color: var(--muted); font-family: monospace; }
+
+/* ── Rules grid ── */
+.rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.rule-card {
+  background: var(--panel); border: 1px solid var(--card); border-radius: 10px; padding: 1.4rem;
+}
+.rule-num { font-size: 2rem; font-weight: 900; line-height: 1; margin-bottom: 0.5rem; }
+.rule-card h3 { font-size: 0.93rem; margin-bottom: 0.4rem; }
+.rule-card > p { font-size: 0.82rem; color: var(--muted); line-height: 1.65; margin-bottom: 0.75rem; }
+
+/* ── Responsive ── */
+@media (max-width: 720px) {
+  .split-grid  { grid-template-columns: 1fr; }
+  .rules-grid  { grid-template-columns: 1fr; }
+  .app         { padding: 1rem; }
+  .big-num     { font-size: 1.8rem; }
+}
+</style>
+</head>
+<body>
+
+<div id="root">
+  <div style="text-align:center;padding:4rem;color:#6b7280;font-family:sans-serif">
+    Loading React... (needs internet for CDN)
+  </div>
+</div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo, useCallback, memo } = React;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────────────────────────────────
+
+// Basic syntax highlighter for code display
+function hl(code) {
+  return code
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/(\/\/[^\n]*)/g,                         '<span class="cmt">$1</span>')
+    .replace(/(`[^`\n]*`|"[^"\n]*"|'[^'\n]*')/g,     '<span class="str">$1</span>')
+    .replace(/\b(useState|useEffect|useRef|useMemo|useCallback|memo|React)\b/g, '<span class="fn">$1</span>')
+    .replace(/\b(const|let|var|function|return|if|else|for|true|false|null|undefined|async|await)\b/g, '<span class="kw">$1</span>')
+    .replace(/\b(\d+)\b/g,                            '<span class="num">$1</span>');
+}
+
+function CodeBlock({ code }) {
+  return <pre className="code-block" dangerouslySetInnerHTML={{ __html: hl(code) }} />;
+}
+
+function Callout({ title, color, items }) {
+  return (
+    <div className={`callout callout-${color}`}>
+      <h4>{title}</h4>
+      <ul>{items.map((item, i) => <li key={i} dangerouslySetInnerHTML={{ __html: item }} />)}</ul>
+    </div>
+  );
+}
+
+// Custom hook: flash the demo box border on every re-render after the first
+function useRenderFlash(boxRef, renderCount) {
+  useEffect(() => {
+    if (renderCount.current <= 1) return;
+    const el = boxRef.current;
+    if (!el) return;
+    el.classList.remove('re-render');
+    void el.offsetWidth; // force reflow so CSS animation restarts
+    el.classList.add('re-render');
+  }); // no deps = runs after every render
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 1. useState
+// ─────────────────────────────────────────────────────────────────────────
+
+function UseStateDemo() {
+  const renderCount = useRef(0); renderCount.current++;
+  const boxRef = useRef(null);   useRenderFlash(boxRef, renderCount);
+
+  const [count, setCount] = useState(0);
+  const [name,  setName]  = useState('');
+  const [on,    setOn]    = useState(false);
+
+  return (
+    <div ref={boxRef} className="demo-box">
+      <span className="render-badge">⟳ render #{renderCount.current}</span>
+
+      <div className="demo-section">
+        <div className="demo-label">Counter — number state</div>
+        <div className="big-num">{count}</div>
+        <div className="btn-row">
+          <button className="btn btn-b" onClick={() => setCount(c => c - 1)}>−1</button>
+          <button className="btn btn-a" onClick={() => setCount(c => c + 1)}>+1</button>
+          <button className="btn btn-r" onClick={() => setCount(0)}>Reset</button>
+        </div>
+      </div>
+
+      <div className="demo-section">
+        <div className="demo-label">Controlled input — string state</div>
+        <input
+          className="demo-input" value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Type your name..."
+        />
+        <div className="demo-output">
+          Hello, <strong style={{ color:'var(--blue)' }}>{name || 'stranger'}</strong>!
+        </div>
+      </div>
+
+      <div className="demo-section">
+        <div className="demo-label">Toggle — boolean state</div>
+        <button
+          className={`btn ${on ? 'btn-g' : 'btn-r'}`}
+          onClick={() => setOn(v => !v)}
+        >
+          {on ? '✅ ON' : '⭕ OFF'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const useStateCode =
+`function Demo() {
+  const [count, setCount] = useState(0);
+  const [name,  setName]  = useState('');
+  const [on,    setOn]    = useState(false);
+
+  return (
+    <div>
+      <button onClick={() => setCount(c => c + 1)}>
+        +1
+      </button>
+
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+      />
+
+      <button onClick={() => setOn(v => !v)}>
+        {on ? 'ON' : 'OFF'}
+      </button>
+    </div>
+  );
+}`;
+
+// ─────────────────────────────────────────────────────────────────────────
+// 2. useEffect
+// ─────────────────────────────────────────────────────────────────────────
+
+function UseEffectDemo() {
+  const renderCount = useRef(0); renderCount.current++;
+  const boxRef = useRef(null);   useRenderFlash(boxRef, renderCount);
+
+  const [time,     setTime]     = useState(0);
+  const [running,  setRunning]  = useState(false);
+  const [tabTitle, setTabTitle] = useState('React Hooks');
+
+  // Effect with cleanup — timer
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setTime(t => t + 1), 1000);
+    return () => clearInterval(id); // cleanup runs on pause / unmount
+  }, [running]);
+
+  // Effect with dependency — document title
+  useEffect(() => {
+    document.title = tabTitle;
+    return () => { document.title = 'React Hooks — Visual Guide'; };
+  }, [tabTitle]);
+
+  const mm = String(Math.floor(time / 60)).padStart(2, '0');
+  const ss = String(time % 60).padStart(2, '0');
+
+  return (
+    <div ref={boxRef} className="demo-box">
+      <span className="render-badge">⟳ render #{renderCount.current}</span>
+
+      <div className="demo-section">
+        <div className="demo-label">Effect 1 — setInterval + cleanup</div>
+        <div className="big-num mono">{mm}:{ss}</div>
+        <div className="btn-row">
+          <button className="btn btn-g" onClick={() => setRunning(true)}  disabled={running}>▶ Start</button>
+          <button className="btn btn-a" onClick={() => setRunning(false)} disabled={!running}>⏸ Pause</button>
+          <button className="btn btn-r" onClick={() => { setRunning(false); setTime(0); }}>↺ Reset</button>
+        </div>
+        <div className="hint">
+          <strong>Cleanup</strong> (clearInterval) fires every time you pause <em>or</em> when the component unmounts.
+        </div>
+      </div>
+
+      <div className="demo-section">
+        <div className="demo-label">Effect 2 — sync browser tab title</div>
+        <input
+          className="demo-input" value={tabTitle}
+          onChange={e => setTabTitle(e.target.value)}
+        />
+        <div className="hint">Watch the browser tab update as you type ↑</div>
+      </div>
+    </div>
+  );
+}
+
+const useEffectCode =
+`function TimerDemo() {
+  const [time,    setTime]    = useState(0);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    if (!running) return;
+
+    const id = setInterval(() => {
+      setTime(t => t + 1);
+    }, 1000);
+
+    return () => clearInterval(id);
+
+  }, [running]);
+
+  return (
+    <button onClick={() => setRunning(r => !r)}>
+      {running ? 'Pause' : 'Start'}
+    </button>
+  );
+}`;
+
+// ─────────────────────────────────────────────────────────────────────────
+// 3. useRef
+// ─────────────────────────────────────────────────────────────────────────
+
+function UseRefDemo() {
+  const renderCount = useRef(0); renderCount.current++;
+  const boxRef = useRef(null);   useRenderFlash(boxRef, renderCount);
+
+  const [stateVal, setStateVal] = useState(0);
+  const refVal   = useRef(0);
+  const inputRef = useRef(null);
+  const prevVal  = useRef(undefined);
+
+  useEffect(() => {
+    prevVal.current = stateVal; // record value AFTER each render
+  }, [stateVal]);
+
+  return (
+    <div ref={boxRef} className="demo-box">
+      <span className="render-badge">⟳ render #{renderCount.current}</span>
+
+      <div className="demo-section">
+        <div className="demo-label">DOM ref — direct element access</div>
+        <div className="btn-row" style={{ marginBottom:'8px' }}>
+          <button className="btn btn-b" onClick={() => inputRef.current.focus()}>
+            Focus input
+          </button>
+          <button className="btn btn-r" onClick={() => { inputRef.current.value=''; inputRef.current.focus(); }}>
+            Clear + Focus
+          </button>
+        </div>
+        <input ref={inputRef} className="demo-input" placeholder="← buttons control me" />
+      </div>
+
+      <div className="demo-section">
+        <div className="demo-label">Value ref — mutate without re-rendering</div>
+        <div className="btn-row">
+          <button className="btn btn-c" onClick={() => {
+            refVal.current++;
+            alert(`refVal.current = ${refVal.current}\n\nNo re-render happened.`);
+          }}>
+            Increment ref
+          </button>
+          <button className="btn btn-a" onClick={() => setStateVal(c => c + 1)}>
+            Increment state (triggers render)
+          </button>
+        </div>
+        <div className="hint" style={{ marginTop:'6px' }}>
+          ref: <strong style={{color:'var(--purple)'}}>{refVal.current}</strong>
+          &nbsp;(only visible after a render) &nbsp;|&nbsp;
+          state: <strong style={{color:'var(--blue)'}}>{stateVal}</strong>
+        </div>
+      </div>
+
+      <div className="demo-section">
+        <div className="demo-label">Previous value — track last render's value</div>
+        <div className="btn-row">
+          <button className="btn btn-g" onClick={() => setStateVal(c => c + 1)}>+1</button>
+          <button className="btn btn-r" onClick={() => setStateVal(c => c - 1)}>−1</button>
+        </div>
+        <div className="hint" style={{ marginTop:'6px' }}>
+          Current: <strong style={{color:'var(--green)'}}>{stateVal}</strong>
+          &nbsp;&nbsp;Previous: <strong style={{color:'var(--yellow)'}}>{prevVal.current ?? '—'}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const useRefCode =
+`function RefDemo() {
+  const inputRef = useRef(null);
+  function focusInput() {
+    inputRef.current.focus();
+  }
+
+  const clickCount = useRef(0);
+  function handleClick() {
+    clickCount.current++;
+  }
+
+  const [num, setNum] = useState(0);
+  const prevNum = useRef(undefined);
+  useEffect(() => {
+    prevNum.current = num;
+  }, [num]);
+
+  return (
+    <div>
+      <input ref={inputRef} />
+      <button onClick={focusInput}>Focus</button>
+      <button onClick={handleClick}>Track click</button>
+      <p>Now: {num} | Before: {prevNum.current}</p>
+    </div>
+  );
+}`;
+
+// ─────────────────────────────────────────────────────────────────────────
+// 4. useMemo
+// ─────────────────────────────────────────────────────────────────────────
+
+function fib(n) {
+  if (n <= 1) return n;
+  return fib(n - 1) + fib(n - 2);
+}
+
+function UseMemoDemo() {
+  const renderCount = useRef(0); renderCount.current++;
+  const boxRef = useRef(null);   useRenderFlash(boxRef, renderCount);
+
+  const [num,      setNum]      = useState(12);
+  const [unrelated, setUnrelated] = useState(0);
+  const calcTimes = useRef(0);
+
+  const memoResult = useMemo(() => {
+    calcTimes.current++;
+    const t0 = performance.now();
+    const result = fib(Math.min(num, 40));
+    const ms = (performance.now() - t0).toFixed(1);
+    return { result, ms, times: calcTimes.current };
+  }, [num]); // only recalculate when num changes
+
+  return (
+    <div ref={boxRef} className="demo-box">
+      <span className="render-badge">⟳ render #{renderCount.current}</span>
+
+      <div className="demo-section">
+        <div className="demo-label">Expensive calculation — fibonacci(n)</div>
+        <div style={{ display:'flex', alignItems:'center', gap:'0.6rem', flexWrap:'wrap' }}>
+          <span>fib(</span>
+          <input
+            type="number" className="demo-input" style={{ width:'70px' }}
+            value={num} min={0} max={40}
+            onChange={e => setNum(Math.min(40, Math.max(0, Number(e.target.value))))}
+          />
+          <span>) =</span>
+          <strong style={{ color:'var(--yellow)', fontSize:'1.3rem' }}>{memoResult.result}</strong>
+        </div>
+        <div className="hint" style={{ marginTop:'8px', display:'flex', gap:'1.5rem' }}>
+          <span>⏱ <strong style={{color:'var(--blue)'}}>{memoResult.ms}ms</strong></span>
+          <span>🔁 Calculated <strong style={{color:'var(--accent)'}}>{memoResult.times}×</strong> total</span>
+        </div>
+      </div>
+
+      <div className="demo-section">
+        <div className="demo-label">Unrelated state — triggers re-render but not recalculation</div>
+        <button className="btn btn-c" onClick={() => setUnrelated(c => c + 1)}>
+          Re-render component ({unrelated}×)
+        </button>
+        <div className="hint" style={{ marginTop:'6px' }}>
+          Click many times → fibonacci was only calculated {memoResult.times}× (cache hit every other time!)
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const useMemoCode =
+`function fib(n) {
+  if (n <= 1) return n;
+  return fib(n - 1) + fib(n - 2);
+}
+
+function Demo() {
+  const [num,   setNum]   = useState(30);
+  const [other, setOther] = useState(0);
+
+  const result = useMemo(() => fib(num), [num]);
+
+  return (
+    <div>
+      <p>fib({num}) = {result}</p>
+
+      <button onClick={() => setOther(c => c + 1)}>
+        Unrelated re-render ({other})
+      </button>
+    </div>
+  );
+}`;
+
+// ─────────────────────────────────────────────────────────────────────────
+// 5. useCallback
+// ─────────────────────────────────────────────────────────────────────────
+
+// Both children are identical and wrapped in memo().
+// The ONLY difference is the stability of the onClick prop.
+const ChildUnstable = memo(function ChildUnstable({ onClick }) {
+  const renders = useRef(0); renders.current++;
+  return (
+    <div className="child-row">
+      <span className="child-label">memo + unstable fn</span>
+      <span className="inline-badge">⟳ {renders.current}</span>
+      <button
+        className="btn btn-b"
+        style={{ fontSize:'0.73rem', padding:'0.22rem 0.65rem' }}
+        onClick={onClick}
+      >click</button>
+    </div>
+  );
+});
+
+const ChildStable = memo(function ChildStable({ onClick }) {
+  const renders = useRef(0); renders.current++;
+  return (
+    <div className="child-row stable">
+      <span className="child-label">memo + useCallback</span>
+      <span className="inline-badge inline-badge-g">⟳ {renders.current}</span>
+      <button
+        className="btn btn-g"
+        style={{ fontSize:'0.73rem', padding:'0.22rem 0.65rem' }}
+        onClick={onClick}
+      >click</button>
+    </div>
+  );
+});
+
+function UseCallbackDemo() {
+  const renderCount = useRef(0); renderCount.current++;
+  const boxRef = useRef(null);   useRenderFlash(boxRef, renderCount);
+
+  const [parentCount, setParentCount] = useState(0);
+  const [clicks,      setClicks]      = useState(0);
+
+  // ❌ New function object on every render → memo() is bypassed
+  const unstableFn = () => setClicks(c => c + 1);
+
+  // ✅ Same function reference across renders → memo() works
+  const stableFn = useCallback(() => setClicks(c => c + 1), []);
+
+  return (
+    <div ref={boxRef} className="demo-box">
+      <span className="render-badge">⟳ render #{renderCount.current}</span>
+
+      <div className="demo-section">
+        <div className="demo-label">Step 1 — re-render the parent, watch child counters</div>
+        <button className="btn btn-a" onClick={() => setParentCount(c => c + 1)}>
+          Re-render parent ({parentCount}×)
+        </button>
+      </div>
+
+      <div className="demo-section">
+        <div className="demo-label">Both children wrapped in React.memo()</div>
+        <ChildUnstable onClick={unstableFn} />
+        <div className="hint">↑ Always re-renders: new fn reference = new prop = memo ignored</div>
+        <div style={{ height:'6px' }} />
+        <ChildStable onClick={stableFn} />
+        <div className="hint">↑ Skips re-renders: same fn reference = same prop = memo works ✅</div>
+      </div>
+
+      <div className="demo-section">
+        <div className="demo-label">Child click count (either button)</div>
+        <span style={{ fontSize:'1.3rem', fontWeight:800, color:'var(--green)' }}>{clicks}</span>
+      </div>
+    </div>
+  );
+}
+
+const useCallbackCode =
+`const Child = memo(function Child({ onClick }) {
+  return <button onClick={onClick}>Click</button>;
+});
+
+function Parent() {
+  const [count, setCount] = useState(0);
+
+  const bad = () => doSomething();
+
+  const good = useCallback(() => {
+    doSomething();
+  }, []);
+
+  return (
+    <div>
+      <button onClick={() => setCount(c => c + 1)}>
+        Re-render parent ({count})
+      </button>
+
+      <Child onClick={bad} />
+      <Child onClick={good} />
+    </div>
+  );
+}`;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Rules of Hooks
+// ─────────────────────────────────────────────────────────────────────────
+
+function RulesSection() {
+  return (
+    <section id="rules" style={{ marginBottom:'4rem' }}>
+      <h2 className="section-title">
+        <span className="hook-tag" style={{ background:'var(--accent)' }}>Rules</span>
+        of Hooks
+      </h2>
+      <p className="section-sub">
+        Hooks are regular JavaScript functions — but React enforces two rules.
+        Breaking them causes subtle, hard-to-debug bugs because React identifies each hook by its <strong>call order</strong>.
+      </p>
+      <div className="rules-grid">
+        <div className="rule-card">
+          <div className="rule-num" style={{ color:'var(--blue)' }}>1</div>
+          <h3>Only call hooks at the top level</h3>
+          <p>
+            Never inside loops, if-statements, or nested functions. React tracks hooks by their order —
+            that order must be the same on every single render.
+          </p>
+          <CodeBlock code={`// ❌ WRONG — conditional hook
+if (isLoggedIn) {
+  const [user] = useState(null);
+}
+
+// ✅ CORRECT
+const [user] = useState(null);
+if (isLoggedIn) { }`} />
+        </div>
+        <div className="rule-card">
+          <div className="rule-num" style={{ color:'var(--purple)' }}>2</div>
+          <h3>Only call hooks from React functions</h3>
+          <p>
+            Call hooks only from function components or custom hooks
+            (functions whose name starts with <code style={{fontFamily:'monospace',background:'rgba(255,255,255,0.08)',padding:'0.1em 0.3em',borderRadius:'3px'}}>use</code>).
+          </p>
+          <CodeBlock code={`// ❌ WRONG — plain helper function
+function getData() {
+  const [d] = useState(null);
+}
+
+// ✅ CORRECT — React component
+function UserCard() {
+  const [d] = useState(null);
+}
+
+// ✅ CORRECT — custom hook (name = use*)
+function useData() {
+  const [d] = useState(null);
+  return d;
+}`} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Section wrapper
+// ─────────────────────────────────────────────────────────────────────────
+
+function HookSection({ id, tagText, tagColor, title, sub, demo, code, calloutColor, calloutTitle, calloutItems }) {
+  return (
+    <section id={id} style={{ marginBottom:'4rem' }}>
+      <h2 className="section-title">
+        <span className="hook-tag" style={{ background: tagColor }}>{tagText}</span>
+        {title}
+      </h2>
+      <p className="section-sub">{sub}</p>
+      <div className="split-grid">
+        <div>
+          <div className="split-label">Live Demo</div>
+          {demo}
+        </div>
+        <div>
+          <div className="split-label">The Code</div>
+          <CodeBlock code={code} />
+        </div>
+      </div>
+      <Callout title={calloutTitle} color={calloutColor} items={calloutItems} />
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Navigation (scrollspy)
+// ─────────────────────────────────────────────────────────────────────────
+
+const NAV = [
+  { id:'usestate',     label:'useState'     },
+  { id:'useeffect',    label:'useEffect'    },
+  { id:'useref',       label:'useRef'       },
+  { id:'usememo',      label:'useMemo'      },
+  { id:'usecallback',  label:'useCallback'  },
+  { id:'rules',        label:'Rules'        },
+];
+
+function Nav() {
+  const [active, setActive] = useState('usestate');
+
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      entries => entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id); }),
+      { rootMargin: '-30% 0px -55% 0px' }
+    );
+    NAV.forEach(({ id }) => {
+      const el = document.getElementById(id);
+      if (el) io.observe(el);
+    });
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <nav className="sticky-nav">
+      {NAV.map(({ id, label }) => (
+        <a
+          key={id}
+          href={`#${id}`}
+          className={`nav-link${active === id ? ' nav-active' : ''}`}
+          onClick={e => {
+            e.preventDefault();
+            document.getElementById(id)?.scrollIntoView({ behavior:'smooth' });
+          }}
+        >{label}</a>
+      ))}
+    </nav>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// App
+// ─────────────────────────────────────────────────────────────────────────
+
+function App() {
+  return (
+    <div className="app">
+      <header className="app-header">
+        <h1>React <span>Hooks</span> &amp; State</h1>
+        <p className="app-sub">Interactive visual guide — play with every hook, watch re-renders live (red flash = re-render)</p>
+      </header>
+
+      <Nav />
+
+      <main>
+        <HookSection
+          id="usestate" tagText="useState" tagColor="var(--blue)"
+          title=" — local state"
+          sub="Adds a reactive variable to your component. Every call to the setter schedules a re-render. Watch the top-right counter and the red border flash — that's React re-rendering."
+          demo={<UseStateDemo />}
+          code={useStateCode}
+          calloutColor="blue" calloutTitle="useState — key insights"
+          calloutItems={[
+            'State is a <b>snapshot per render</b>. Calling <code>setX(5)</code> schedules the next render; the current render still sees the old value.',
+            'Use <b>functional updates</b> <code>setX(prev => prev + 1)</code> when the new value depends on the old one — safe with React\'s batching.',
+            'React 18 <b>batches</b> multiple state setters in one event into a single re-render.',
+            'State lives <b>outside</b> the component function, stored in React\'s internal fiber tree.',
+          ]}
+        />
+
+        <HookSection
+          id="useeffect" tagText="useEffect" tagColor="var(--green)"
+          title=" — side effects"
+          sub="Runs code after React renders and updates the DOM. Use it for timers, subscriptions, fetch calls, or anything that reaches outside React."
+          demo={<UseEffectDemo />}
+          code={useEffectCode}
+          calloutColor="green" calloutTitle="useEffect — key insights"
+          calloutItems={[
+            'Effects run <b>after</b> the render — the screen is already updated when your effect code executes.',
+            'The <b>cleanup function</b> (what you return) runs before the next effect and on unmount. Always clean up timers, listeners, and subscriptions.',
+            'Dependency array: <code>[]</code> once on mount · <code>[x]</code> when x changes · omitted after every render.',
+            'Never write <code>async</code> directly on the effect — define an async fn inside it and call it immediately.',
+          ]}
+        />
+
+        <HookSection
+          id="useref" tagText="useRef" tagColor="var(--yellow)"
+          title=" — mutable ref"
+          sub="A box with a .current property that persists across renders — but changing it does NOT trigger a re-render. Also the way to grab real DOM nodes."
+          demo={<UseRefDemo />}
+          code={useRefCode}
+          calloutColor="yellow" calloutTitle="useRef — key insights"
+          calloutItems={[
+            'Changing <code>ref.current</code> does <b>NOT trigger a re-render</b>. Use state for values shown on screen.',
+            'Attach to DOM: <code>&lt;input ref={myRef} /&gt;</code> then <code>myRef.current.focus()</code> — direct DOM access.',
+            'Perfect for storing interval IDs, previous values, or any mutable data that shouldn\'t affect the UI.',
+            'Unlike state, <code>ref.current</code> is <b>directly mutable</b> — no setter function, just read/write.',
+          ]}
+        />
+
+        <HookSection
+          id="usememo" tagText="useMemo" tagColor="var(--purple)"
+          title=" — memoized value"
+          sub="Caches an expensive calculation result between renders. Only recalculates when its dependency changes — try clicking 'unrelated re-render' to see the cache work."
+          demo={<UseMemoDemo />}
+          code={useMemoCode}
+          calloutColor="purple" calloutTitle="useMemo — key insights"
+          calloutItems={[
+            'Runs <b>during render</b> (unlike useEffect which runs after). The cached value is used immediately in JSX.',
+            'Only add useMemo when profiling shows a <b>genuinely slow computation</b>. Unnecessary memoization adds complexity.',
+            '<code>useMemo(() => value, deps)</code> caches a <b>value</b>. <code>useCallback(fn, deps)</code> caches a <b>function</b> — equivalent under the hood.',
+            'The dependency array works exactly like useEffect: recalculate only when a dep changes.',
+          ]}
+        />
+
+        <HookSection
+          id="usecallback" tagText="useCallback" tagColor="var(--accent)"
+          title=" — memoized function"
+          sub="Returns a stable function reference that only changes when its dependencies change. Click 'Re-render parent' and watch which child re-renders — the render badge is your proof."
+          demo={<UseCallbackDemo />}
+          code={useCallbackCode}
+          calloutColor="red" calloutTitle="useCallback — key insights"
+          calloutItems={[
+            'Functions defined inside components are <b>new objects every render</b>. useCallback returns the same object until deps change.',
+            'Only useful when passing callbacks to <b>React.memo()-wrapped children</b>. Without memo on the child, useCallback does nothing.',
+            '<code>useCallback(fn, deps)</code> is exactly <code>useMemo(() => fn, deps)</code> — shorthand for function memoization.',
+            "Don't reach for useCallback by default — profile first, optimize only where children are visibly re-rendering unnecessarily.",
+          ]}
+        />
+
+        <RulesSection />
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

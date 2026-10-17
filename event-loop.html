@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Loop & V8 — Visual Guide</title>
+<style>
+  :root {
+    --bg: #0f0f17;
+    --panel: #16192a;
+    --card: #1e2340;
+    --accent: #e94560;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --text: #e2e8f0;
+    --muted: #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { text-align: center; font-size: 2.2rem; margin-bottom: 0.4rem; }
+  h1 span { color: var(--accent); }
+  .subtitle { text-align: center; color: var(--muted); margin-bottom: 3rem; font-size: 1rem; }
+  .section { margin-bottom: 3.5rem; }
+  .section-title {
+    font-size: 1.3rem; font-weight: 700;
+    margin-bottom: 1.2rem; padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--accent);
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  /* ── V8 Pipeline ── */
+  .pipeline {
+    display: flex; align-items: center;
+    gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0;
+  }
+  .p-box {
+    background: var(--panel); border: 1px solid var(--card);
+    border-radius: 8px; padding: 0.9rem 1.2rem; text-align: center;
+  }
+  .p-box .lbl { font-size: 0.68rem; color: var(--muted); margin-bottom: 4px; }
+  .p-box .val { font-weight: 700; font-size: 0.95rem; }
+  .arrow { color: var(--accent); font-size: 1.4rem; }
+  .callout {
+    background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.25);
+    border-radius: 10px; padding: 1.2rem 1.5rem; margin-top: 1rem;
+  }
+  .callout h3 { color: var(--purple); margin-bottom: 0.6rem; font-size: 1rem; }
+  .callout ul { list-style: none; }
+  .callout li { padding: 0.3rem 0; line-height: 1.6; }
+  .callout li::before { content: '⚡ '; }
+
+  /* ── Sync vs Async ── */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .ccard {
+    background: var(--panel); border-radius: 10px;
+    padding: 1.4rem; border: 1px solid transparent;
+  }
+  .ccard.sync  { border-color: var(--accent); }
+  .ccard.async { border-color: var(--green); }
+  .ccard h3 { margin-bottom: 0.8rem; font-size: 1rem; }
+  .ccard.sync  h3 { color: var(--accent); }
+  .ccard.async h3 { color: var(--green); }
+  pre {
+    background: #080810; border-radius: 6px;
+    padding: 1rem; font-family: 'Cascadia Code','Consolas', monospace;
+    font-size: 0.82rem; line-height: 1.85; overflow-x: auto;
+  }
+  .kw { color: var(--purple); }
+  .fn { color: var(--blue); }
+  .str { color: var(--green); }
+  .num { color: var(--yellow); }
+  .cmt { color: #404760; font-style: italic; }
+
+  /* ── Visualizer ── */
+  .viz-wrap {
+    background: var(--panel); border-radius: 12px;
+    padding: 1.5rem; border: 1px solid var(--card);
+  }
+  .btn-group { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+  .btn {
+    padding: 0.45rem 1.1rem; border: none; border-radius: 6px;
+    cursor: pointer; font-size: 0.82rem; font-weight: 700;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .btn:hover { transform: translateY(-1px); opacity: 0.9; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-a { background: var(--accent); color: #fff; }
+  .btn-b { background: var(--green);  color: #000; }
+  .btn-c { background: var(--purple); color: #fff; }
+  .btn-r { background: #2a2a3a; color: var(--text); }
+
+  .viz-grid {
+    display: grid; grid-template-columns: 190px 1fr 190px;
+    gap: 1rem; align-items: start;
+  }
+  .vbox {
+    background: #080810; border-radius: 8px;
+    padding: 0.9rem; min-height: 180px;
+  }
+  .vbox-title {
+    font-size: 0.65rem; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--muted);
+    text-align: center; margin-bottom: 0.7rem;
+  }
+  .item {
+    border-radius: 4px; padding: 0.35rem 0.65rem;
+    margin-bottom: 4px; font-size: 0.78rem;
+    font-family: monospace; text-align: center;
+    border-left: 3px solid; animation: fadeIn 0.25s ease;
+  }
+  .item.blue   { background: rgba(96,165,250,0.12); border-color: var(--blue); }
+  .item.green  { background: rgba(74,222,128,0.12); border-color: var(--green); }
+  .item.purple { background: rgba(167,139,250,0.15); border-color: var(--purple); }
+  .item.yellow { background: rgba(251,191,36,0.12); border-color: var(--yellow); }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Center column */
+  .center-col { display: flex; flex-direction: column; gap: 0.75rem; }
+  .code-box {
+    background: #080810; border-radius: 8px;
+    padding: 0.9rem; font-family: monospace; font-size: 0.8rem;
+    line-height: 1.85; min-height: 80px;
+  }
+  .code-line { padding: 1px 6px; border-radius: 3px; }
+  .code-line.active {
+    background: rgba(233,69,96,0.18);
+    border-left: 3px solid var(--accent);
+    padding-left: 9px;
+  }
+  .loop-badge {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.75rem;
+    font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--purple));
+  }
+  .loop-badge.spin { animation: pulse 0.8s infinite; }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  .webapi-box { min-height: 60px; }
+
+  /* Queues */
+  .q-label {
+    font-size: 0.65rem; text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 0.4rem; margin-top: 0.6rem;
+  }
+  .q-label.micro { color: var(--purple); }
+  .q-label.macro { color: var(--yellow); }
+
+  /* Log */
+  .log {
+    background: #080810; border-radius: 6px;
+    padding: 0.7rem 0.9rem; font-family: monospace;
+    font-size: 0.82rem; min-height: 52px;
+    margin-top: 1rem; border: 1px solid var(--card);
+    display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;
+  }
+  .log-entry { color: var(--green); }
+  .log-entry::before { content: '> '; color: var(--accent); }
+
+  /* Golden rule */
+  .golden {
+    background: linear-gradient(135deg, #12132a, #0f1e3a);
+    border: 2px solid var(--accent); border-radius: 12px;
+    padding: 2rem; text-align: center;
+  }
+  .golden-code {
+    font-family: 'Cascadia Code','Consolas', monospace;
+    font-size: 0.88rem; line-height: 2.3; text-align: left;
+    display: inline-block;
+  }
+  .golden-output {
+    margin-top: 1.4rem; padding: 0.9rem 1.4rem;
+    background: rgba(0,0,0,0.4); border-radius: 8px;
+    font-family: monospace; font-size: 1.15rem; letter-spacing: 3px;
+  }
+  .tip { color: var(--muted); font-size: 0.85rem; margin-top: 0.75rem; }
+
+  @media (max-width: 750px) {
+    .compare  { grid-template-columns: 1fr; }
+    .viz-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>The <span>Event Loop</span> & V8</h1>
+<p class="subtitle">JavaScript's engine, async model, and event loop — visually explained</p>
+
+<!-- ──────────────────────────────────────── -->
+<!--  SECTION 1 · V8 ENGINE                  -->
+<!-- ──────────────────────────────────────── -->
+<div class="section">
+  <h2 class="section-title">1. The V8 Engine</h2>
+  <p style="color:var(--muted); margin-bottom:1rem;">
+    V8 is a C++ program inside Chrome &amp; Node.js. It reads your JS and turns it into machine code the CPU can run.
+  </p>
+  <div class="pipeline">
+    <div class="p-box"><div class="lbl">You write</div><div class="val" style="color:var(--blue)">JS Code</div></div>
+    <div class="arrow">→</div>
+    <div class="p-box"><div class="lbl">V8 parses to</div><div class="val" style="color:var(--purple)">AST</div></div>
+    <div class="arrow">→</div>
+    <div class="p-box"><div class="lbl">V8 compiles (JIT)</div><div class="val" style="color:var(--yellow)">Bytecode</div></div>
+    <div class="arrow">→</div>
+    <div class="p-box"><div class="lbl">CPU executes</div><div class="val" style="color:var(--green)">Machine Code</div></div>
+    <div class="arrow">→</div>
+    <div class="p-box"><div class="lbl">V8 also manages</div><div class="val" style="color:var(--accent)">Heap Memory</div></div>
+  </div>
+  <div class="callout">
+    <h3>Mental Model</h3>
+    <ul>
+      <li><strong>V8 = the translator.</strong> Your JS is a recipe in English; V8 converts it to what the CPU speaks.</li>
+      <li><strong>JIT (Just-In-Time)</strong> means V8 compiles code <em>as it runs</em> — hot paths get faster over time.</li>
+      <li><strong>The Heap</strong> is V8's memory warehouse — where all your objects and variables live.</li>
+      <li><strong>The Call Stack</strong> is also inside V8 — it tracks which function is currently running.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────── -->
+<!--  SECTION 2 · SYNC vs ASYNC              -->
+<!-- ──────────────────────────────────────── -->
+<div class="section">
+  <h2 class="section-title">2. Synchronous vs Asynchronous</h2>
+  <p style="color:var(--muted); margin-bottom:1rem;">
+    JS is <strong>single-threaded</strong> — only one thing runs at a time on the Call Stack. Async is how it avoids getting stuck waiting.
+  </p>
+  <div class="compare">
+    <div class="ccard sync">
+      <h3>⛔ Synchronous — Blocking</h3>
+      <pre><span class="fn">console</span>.<span class="fn">log</span>(<span class="str">"1. Start"</span>);
+
+<span class="cmt">// This BLOCKS the whole thread!</span>
+<span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i < <span class="num">3_000_000_000</span>; i++);
+
+<span class="fn">console</span>.<span class="fn">log</span>(<span class="str">"2. End"</span>);
+
+<span class="cmt">// Output: 1 ... (long freeze) ... 2</span>
+<span class="cmt">// Nothing else can run during the loop!</span></pre>
+    </div>
+    <div class="ccard async">
+      <h3>✅ Asynchronous — Non-blocking</h3>
+      <pre><span class="fn">console</span>.<span class="fn">log</span>(<span class="str">"1. Start"</span>);
+
+<span class="cmt">// Handed off to Web API — stack is free!</span>
+<span class="fn">setTimeout</span>(() => {
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="str">"3. I waited 1s"</span>);
+}, <span class="num">1000</span>);
+
+<span class="fn">console</span>.<span class="fn">log</span>(<span class="str">"2. End"</span>); <span class="cmt">// runs immediately!</span>
+
+<span class="cmt">// Output: 1 → 2 → (1 sec) → 3</span>
+<span class="cmt">// "2" prints BEFORE "3"!</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────── -->
+<!--  SECTION 3 · EVENT LOOP VISUALIZER      -->
+<!-- ──────────────────────────────────────── -->
+<div class="section">
+  <h2 class="section-title">3. The Event Loop — Interactive</h2>
+  <p style="color:var(--muted); margin-bottom:1rem;">
+    The event loop's one job: <em>"Is the Call Stack empty? If yes, move the next queued task onto it."</em>
+    Microtasks (Promises) always run before Macrotasks (setTimeout).
+  </p>
+
+  <div class="viz-wrap">
+    <div class="btn-group">
+      <button class="btn btn-a" id="btn1" onclick="runDemo('timeout')">▶ Demo 1: setTimeout</button>
+      <button class="btn btn-b" id="btn2" onclick="runDemo('promise')">▶ Demo 2: Promise</button>
+      <button class="btn btn-c" id="btn3" onclick="runDemo('mixed')">▶ Demo 3: Mixed (mind-bender)</button>
+      <button class="btn btn-r" onclick="resetViz()">↺ Reset</button>
+    </div>
+
+    <div class="viz-grid">
+
+      <!-- CALL STACK -->
+      <div>
+        <div class="vbox" id="stack-box">
+          <div class="vbox-title">📚 Call Stack (V8)</div>
+          <div id="stack-items"></div>
+        </div>
+        <p style="text-align:center; font-size:0.7rem; color:var(--muted); margin-top:0.4rem;">runs synchronously</p>
+      </div>
+
+      <!-- CENTER -->
+      <div class="center-col">
+        <div class="code-box" id="code-box">
+          <span style="color:var(--muted)">← pick a demo to begin</span>
+        </div>
+        <div class="loop-badge" id="loop-badge">↻ Event Loop (idle)</div>
+        <div class="vbox webapi-box">
+          <div class="vbox-title">🌐 Web APIs (browser/Node)</div>
+          <div id="webapi-items" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+        </div>
+      </div>
+
+      <!-- QUEUES -->
+      <div>
+        <div class="vbox">
+          <div class="vbox-title">📬 Task Queues</div>
+          <div class="q-label micro">⚡ Microtask — Promises</div>
+          <div id="micro-q"></div>
+          <div class="q-label macro">⏱ Macrotask — setTimeout</div>
+          <div id="macro-q"></div>
+        </div>
+        <p style="text-align:center; font-size:0.7rem; color:var(--muted); margin-top:0.4rem;">microtasks run first!</p>
+      </div>
+
+    </div>
+
+    <div class="log" id="log-box">
+      <span style="color:var(--muted)">console output appears here...</span>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:1rem;">
+    <h3>The Order:</h3>
+    <ul>
+      <li><strong>Call Stack first.</strong> All synchronous code runs here, top-to-bottom, right now.</li>
+      <li><strong>setTimeout / fetch → Web API → Macrotask Queue.</strong> These wait until the stack is empty.</li>
+      <li><strong>Promise.then → Microtask Queue.</strong> Runs before any macrotask, after each stack drain.</li>
+      <li><strong>Loop:</strong> Stack → drain all Microtasks → one Macrotask → drain all Microtasks → repeat.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────── -->
+<!--  SECTION 4 · GOLDEN RULE                -->
+<!-- ──────────────────────────────────────── -->
+<div class="section">
+  <h2 class="section-title">4. The Golden Rule — Memorize This</h2>
+  <div class="golden">
+    <div class="golden-code">
+      <span style="color:var(--blue)">console</span>.<span style="color:var(--blue)">log</span>(<span style="color:var(--green)">"1"</span>);
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#404760">// sync  → stack   → prints 1st</span><br>
+      <span style="color:var(--yellow)">setTimeout</span>(() =&gt; <span style="color:var(--blue)">console</span>.<span style="color:var(--blue)">log</span>(<span style="color:var(--green)">"2"</span>), <span style="color:var(--yellow)">0</span>);
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#404760">// macro → queue  → prints LAST</span><br>
+      <span style="color:var(--purple)">Promise</span>.resolve().<span style="color:var(--blue)">then</span>(() =&gt; <span style="color:var(--blue)">console</span>.<span style="color:var(--blue)">log</span>(<span style="color:var(--green)">"3"</span>));
+      &nbsp;<span style="color:#404760">// micro → queue  → prints 3rd</span><br>
+      <span style="color:var(--blue)">console</span>.<span style="color:var(--blue)">log</span>(<span style="color:var(--green)">"4"</span>);
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#404760">// sync  → stack   → prints 2nd</span>
+    </div>
+    <div class="golden-output">
+      Output: <span style="color:var(--green)">1 → 4 → 3 → 2</span>
+    </div>
+    <p class="tip">Open browser DevTools (F12 → Console) and paste this to verify!</p>
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────
+let running = false;
+const stackArr = [];   // parallel array to track DOM elements
+
+// ─── Scenarios ───────────────────────────────────────────────────────────
+const DEMOS = {
+
+  timeout: {
+    lines: [
+      'console.log("Start");',
+      'setTimeout(() => {',
+      '  console.log("Timeout!");',
+      '}, 1000);',
+      'console.log("End");',
+    ],
+    steps: [
+      { do:'push',  target:'stack',  text:'main()',                color:'blue' },
+      { do:'push',  target:'stack',  text:'console.log("Start")', color:'blue', line:0, log:'Start' },
+      { do:'pop',   target:'stack' },
+      { do:'push',  target:'stack',  text:'setTimeout(...)',       color:'blue', line:1 },
+      { do:'push',  target:'webapi', text:'Timer 1000ms',          color:'green', id:'t1' },
+      { do:'pop',   target:'stack' },
+      { do:'push',  target:'stack',  text:'console.log("End")',    color:'blue', line:4, log:'End' },
+      { do:'pop',   target:'stack' },
+      { do:'pop',   target:'stack' },          // pop main()
+      { do:'badge', text:'↻ Event Loop — stack empty, checking...' },
+      { do:'glow',  id:'t1' },                 // timer fires
+      { do:'push',  target:'macro',  text:'callback()',            color:'yellow', id:'m1' },
+      { do:'badge', text:'↻ Event Loop — moving macrotask → stack' },
+      { do:'remove',id:'t1', from:'webapi' },
+      { do:'remove',id:'m1', from:'macro' },
+      { do:'push',  target:'stack',  text:'callback()',            color:'blue' },
+      { do:'push',  target:'stack',  text:'console.log("Timeout!")', color:'blue', line:2, log:'Timeout!' },
+      { do:'pop',   target:'stack' },
+      { do:'pop',   target:'stack' },
+    ]
+  },
+
+  promise: {
+    lines: [
+      'console.log("Start");',
+      'Promise.resolve()',
+      '  .then(() => {',
+      '    console.log("Promise!");',
+      '  });',
+      'console.log("End");',
+    ],
+    steps: [
+      { do:'push',  target:'stack',  text:'main()',                       color:'blue' },
+      { do:'push',  target:'stack',  text:'console.log("Start")',         color:'blue', line:0, log:'Start' },
+      { do:'pop',   target:'stack' },
+      { do:'push',  target:'stack',  text:'Promise.resolve().then()',     color:'blue', line:1 },
+      { do:'push',  target:'micro',  text:'.then callback',               color:'purple', id:'p1' },
+      { do:'pop',   target:'stack' },
+      { do:'push',  target:'stack',  text:'console.log("End")',           color:'blue', line:5, log:'End' },
+      { do:'pop',   target:'stack' },
+      { do:'pop',   target:'stack' },         // pop main()
+      { do:'badge', text:'↻ Event Loop — stack empty, draining microtasks first...' },
+      { do:'remove',id:'p1', from:'micro' },
+      { do:'push',  target:'stack',  text:'.then callback()',             color:'blue' },
+      { do:'push',  target:'stack',  text:'console.log("Promise!")',      color:'blue', line:3, log:'Promise!' },
+      { do:'pop',   target:'stack' },
+      { do:'pop',   target:'stack' },
+    ]
+  },
+
+  mixed: {
+    lines: [
+      'console.log("1");',
+      'setTimeout(() => console.log("2"), 0);',
+      'Promise.resolve()',
+      '  .then(() => console.log("3"));',
+      'console.log("4");',
+    ],
+    steps: [
+      { do:'push',  target:'stack',  text:'main()',                    color:'blue' },
+      { do:'push',  target:'stack',  text:'console.log("1")',          color:'blue', line:0, log:'1' },
+      { do:'pop',   target:'stack' },
+      { do:'push',  target:'stack',  text:'setTimeout(..., 0)',        color:'blue', line:1 },
+      { do:'push',  target:'webapi', text:'Timer 0ms',                 color:'green', id:'t2' },
+      { do:'pop',   target:'stack' },
+      { do:'push',  target:'stack',  text:'Promise.resolve().then()',  color:'blue', line:2 },
+      { do:'push',  target:'micro',  text:'.then → log("3")',          color:'purple', id:'p2' },
+      { do:'pop',   target:'stack' },
+      { do:'push',  target:'stack',  text:'console.log("4")',          color:'blue', line:4, log:'4' },
+      { do:'pop',   target:'stack' },
+      { do:'pop',   target:'stack' },         // pop main()
+      { do:'glow',  id:'t2' },
+      { do:'push',  target:'macro',  text:'() => log("2")',            color:'yellow', id:'m2' },
+      { do:'badge', text:'↻ Event Loop — microtasks run BEFORE macrotasks!' },
+      { do:'remove',id:'p2', from:'micro' },
+      { do:'push',  target:'stack',  text:'() => console.log("3")',    color:'blue', line:3, log:'3' },
+      { do:'pop',   target:'stack' },
+      { do:'badge', text:'↻ Event Loop — now the macrotask...' },
+      { do:'remove',id:'t2', from:'webapi' },
+      { do:'remove',id:'m2', from:'macro' },
+      { do:'push',  target:'stack',  text:'() => console.log("2")',    color:'blue', line:1, log:'2' },
+      { do:'pop',   target:'stack' },
+    ]
+  }
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+function el(id) { return document.getElementById(id); }
+
+function makeItem(text, color, id) {
+  const d = document.createElement('div');
+  d.className = `item ${color}`;
+  d.textContent = text;
+  if (id) d.id = id;
+  return d;
+}
+
+function setCode(lines, activeLine) {
+  el('code-box').innerHTML = lines.map((t, i) =>
+    `<div class="code-line${i === activeLine ? ' active' : ''}">${escHtml(t)}</div>`
+  ).join('');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setBadge(text, spin = false) {
+  const b = el('loop-badge');
+  b.textContent = text;
+  b.className = 'loop-badge' + (spin ? ' spin' : '');
+}
+
+function addLog(text) {
+  const box = el('log-box');
+  if (box.querySelector('span')) box.innerHTML = '';
+  const d = document.createElement('span');
+  d.className = 'log-entry';
+  d.textContent = text;
+  box.appendChild(d);
+}
+
+function clearAll() {
+  el('stack-items').innerHTML = '';
+  el('webapi-items').innerHTML = '';
+  el('micro-q').innerHTML = '';
+  el('macro-q').innerHTML = '';
+  el('log-box').innerHTML = '<span style="color:var(--muted)">console output appears here...</span>';
+  el('code-box').innerHTML = '<span style="color:var(--muted)">← pick a demo to begin</span>';
+  setBadge('↻ Event Loop (idle)');
+  stackArr.length = 0;
+}
+
+// ─── Main Runner ─────────────────────────────────────────────────────────
+async function runDemo(name) {
+  if (running) return;
+  running = true;
+  ['btn1','btn2','btn3'].forEach(id => el(id).disabled = true);
+
+  clearAll();
+  const demo = DEMOS[name];
+  setCode(demo.lines, -1);
+  await delay(400);
+
+  for (const step of demo.steps) {
+    if (!running) break;
+
+    switch (step.do) {
+
+      case 'push': {
+        if (step.line !== undefined) setCode(demo.lines, step.line);
+        const item = makeItem(step.text, step.color, step.id);
+        if (step.target === 'stack') {
+          el('stack-items').insertBefore(item, el('stack-items').firstChild);
+          stackArr.push(item);
+        } else if (step.target === 'webapi') {
+          el('webapi-items').appendChild(item);
+        } else if (step.target === 'micro') {
+          el('micro-q').appendChild(item);
+        } else if (step.target === 'macro') {
+          el('macro-q').appendChild(item);
+        }
+        if (step.log) { await delay(120); addLog(step.log); }
+        break;
+      }
+
+      case 'pop': {
+        const item = stackArr.pop();
+        if (item) {
+          item.style.transition = 'opacity 0.2s, transform 0.2s';
+          item.style.opacity = '0';
+          item.style.transform = 'translateY(-8px)';
+          await delay(220);
+          item.remove();
+        }
+        setCode(demo.lines, -1);
+        break;
+      }
+
+      case 'badge':
+        setBadge(step.text, true);
+        break;
+
+      case 'glow': {
+        const e = el(step.id);
+        if (e) { e.style.background = 'rgba(251,191,36,0.35)'; e.style.borderColor = 'var(--yellow)'; }
+        break;
+      }
+
+      case 'remove': {
+        const e = el(step.id);
+        if (e) { e.style.opacity = '0.3'; await delay(250); e.remove(); }
+        break;
+      }
+    }
+
+    await delay(680);
+  }
+
+  setCode(demo.lines, -1);
+  setBadge('↻ Event Loop (idle — stack empty)', false);
+  running = false;
+  ['btn1','btn2','btn3'].forEach(id => el(id).disabled = false);
+}
+
+function resetViz() {
+  running = false;
+  clearAll();
+  ['btn1','btn2','btn3'].forEach(id => el(id).disabled = false);
+}
+</script>
+</body>
+</html>
